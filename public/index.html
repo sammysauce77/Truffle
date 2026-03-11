@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRUFFLE — True Shuffle for Spotify</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080808;
+  --surface: #101010;
+  --surface2: #161616;
+  --border: #1e1e1e;
+  --border2: #2a2a2a;
+  --green: #1DB954;
+  --accent: #c8ff00;
+  --accent2: #ff3c6e;
+  --text: #efefef;
+  --muted: #555;
+  --muted2: #888;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 20px 100px;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 40% at 70% 10%, rgba(200,255,0,0.04) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 30% at 10% 80%, rgba(255,60,110,0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Layout ── */
+.wrap { width: 100%; max-width: 680px; position: relative; z-index: 1; }
+
+/* ── Header ── */
+header {
+  padding: 52px 0 36px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.logo-block { display: flex; flex-direction: column; gap: 2px; }
+
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(56px, 13vw, 96px);
+  line-height: 0.88;
+  letter-spacing: -1px;
+  color: var(--accent);
+}
+.logo em { color: var(--accent2); font-style: normal; }
+
+.tagline {
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-left: 3px;
+  margin-top: 6px;
+}
+
+/* ── Auth button ── */
+.auth-area { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+.btn-spotify {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--green);
+  color: #000;
+  border: none;
+  padding: 10px 18px;
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.btn-spotify:hover { background: #1ed760; transform: translateY(-1px); }
+.btn-spotify svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted2);
+}
+.user-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  object-fit: cover;
+}
+.user-avatar-placeholder {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--muted);
+}
+.logout-link {
+  font-size: 10px; color: var(--muted); text-decoration: none;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.logout-link:hover { color: var(--muted2); }
+
+/* ── Sections ── */
+section { margin-bottom: 28px; }
+
+.section-label {
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+/* ── URL Input ── */
+.url-row {
+  display: flex;
+  gap: 8px;
+}
+
+.url-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  padding: 13px 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.url-input:focus { border-color: var(--accent); }
+.url-input::placeholder { color: #2a2a2a; }
+
+.btn-fetch {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 17px;
+  letter-spacing: 1.5px;
+  padding: 0 22px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-fetch:hover { background: #b8ef00; }
+.btn-fetch:disabled { background: #2a2a2a; color: #444; cursor: not-allowed; }
+
+/* ── Playlist Card ── */
+.playlist-card {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 20px;
+  gap: 16px;
+  align-items: center;
+}
+.playlist-card.visible { display: flex; }
+
+.playlist-art {
+  width: 72px; height: 72px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface2);
+}
+.playlist-art-placeholder {
+  width: 72px; height: 72px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+}
+
+.playlist-info { flex: 1; min-width: 0; }
+.playlist-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.playlist-meta { font-size: 11px; color: var(--muted2); margin-top: 4px; line-height: 1.6; }
+.playlist-count { color: var(--accent); font-size: 13px; }
+
+/* ── Mode Selector ── */
+.mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mode-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.mode-card:hover { border-color: var(--border2); }
+.mode-card.selected { border-color: var(--accent); background: #111800; }
+.mode-card.selected .mode-name { color: var(--accent); }
+
+.mode-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  position: absolute;
+  top: 14px; right: 14px;
+  transition: all 0.15s;
+}
+.mode-card.selected .mode-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.mode-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.mode-desc { font-size: 10px; color: var(--muted); line-height: 1.7; }
+
+/* ── Playlist Name Input ── */
+.name-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  padding: 13px 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.name-input:focus { border-color: var(--accent); }
+
+/* ── Big Shuffle Button ── */
+.btn-shuffle {
+  width: 100%;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  letter-spacing: 3px;
+  padding: 20px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.btn-shuffle:hover { background: #b8ef00; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(200,255,0,0.15); }
+.btn-shuffle:active { transform: translateY(0); }
+.btn-shuffle:disabled { background: #1e1e1e; color: #333; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ── Progress ── */
+.progress-wrap {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+.progress-wrap.visible { display: flex; }
+
+.progress-bar-bg {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.4s ease;
+}
+.progress-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+
+/* ── Result Card ── */
+.result-card {
+  display: none;
+  background: #0d1400;
+  border: 1px solid var(--accent);
+  padding: 24px;
+  flex-direction: column;
+  gap: 14px;
+}
+.result-card.visible { display: flex; }
+
+.result-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: var(--accent);
+}
+
+.result-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 1px;
+}
+
+.result-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 2px solid var(--border2);
+  padding-left: 12px;
+}
+.result-preview-track { font-size: 11px; color: var(--muted2); line-height: 1.6; }
+.result-preview-track:first-child { color: var(--text); }
+
+.btn-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--green);
+  color: #000;
+  text-decoration: none;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  padding: 12px 20px;
+  align-self: flex-start;
+  transition: all 0.15s;
+}
+.btn-open:hover { background: #1ed760; }
+
+.btn-again {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  align-self: flex-start;
+}
+.btn-again:hover { color: var(--text); border-color: #444; }
+
+.result-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* ── Error ── */
+.error-msg {
+  display: none;
+  background: #1a0008;
+  border: 1px solid var(--accent2);
+  padding: 14px 16px;
+  font-size: 12px;
+  color: var(--accent2);
+  letter-spacing: 0.5px;
+}
+.error-msg.visible { display: block; }
+
+/* ── Not logged in overlay ── */
+.auth-gate {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 20px;
+  border: 1px dashed var(--border2);
+  text-align: center;
+}
+.auth-gate.visible { display: flex; }
+.auth-gate-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  letter-spacing: 2px;
+  color: var(--muted2);
+}
+.auth-gate-sub { font-size: 11px; color: var(--muted); letter-spacing: 1px; line-height: 1.7; }
+
+/* ── Divider ── */
+.divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.anim { animation: fadeUp 0.3s ease both; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner { display: inline-block; animation: spin 0.8s linear infinite; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo-block">
+      <div class="logo">TRUF<em>FL</em>E</div>
+      <div class="tagline">True Random Shuffle for Spotify</div>
+    </div>
+    <div class="auth-area" id="authArea">
+      <!-- filled by JS -->
+    </div>
+  </header>
+
+  <!-- Auth gate (shown when not logged in) -->
+  <div class="auth-gate" id="authGate">
+    <div class="auth-gate-title">Connect Your Spotify</div>
+    <div class="auth-gate-sub">
+      Truffle needs access to read your playlists<br>and create a new shuffled one in your account.
+    </div>
+    <a href="/login" class="btn-spotify">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+      CONNECT SPOTIFY
+    </a>
+  </div>
+
+  <!-- Main app (shown when logged in) -->
+  <div id="appContent" style="display:none;">
+
+    <section>
+      <div class="section-label">Paste a Spotify Playlist Link</div>
+      <div class="url-row">
+        <input
+          type="text"
+          class="url-input"
+          id="urlInput"
+          placeholder="https://open.spotify.com/playlist/..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="btn-fetch" id="fetchBtn" onclick="fetchPlaylist()">LOAD</button>
+      </div>
+    </section>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <section id="playlistSection" style="display:none;" class="anim">
+      <div class="playlist-card visible" id="playlistCard">
+        <div class="playlist-art-placeholder" id="playlistArtPlaceholder">🎵</div>
+        <img class="playlist-art" id="playlistArt" style="display:none;" alt="Playlist art" />
+        <div class="playlist-info">
+          <div class="playlist-name" id="playlistName">—</div>
+          <div class="playlist-meta">
+            by <span id="playlistOwner">—</span> &nbsp;·&nbsp;
+            <span class="playlist-count" id="playlistCount">—</span> tracks
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="optionsSection" style="display:none;" class="anim">
+      <div class="section-label">Shuffle Mode</div>
+      <div class="mode-grid">
+        <div class="mode-card selected" id="modeTrue" onclick="selectMode('true')">
+          <div class="mode-dot"></div>
+          <div class="mode-name">True Shuffle</div>
+          <div class="mode-desc">Pure Fisher-Yates algorithm. Every possible ordering has an equal chance. Genuinely random.</div>
+        </div>
+        <div class="mode-card" id="modeSmart" onclick="selectMode('smart')">
+          <div class="mode-dot"></div>
+          <div class="mode-name">Smart Shuffle</div>
+          <div class="mode-desc">Same algorithm, then nudges same-artist songs apart. Feels random without biasing any track.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nameSection" style="display:none;" class="anim">
+      <div class="section-label">New Playlist Name</div>
+      <input type="text" class="name-input" id="nameInput" placeholder="🔀 My Playlist (Truffled)" />
+    </section>
+
+    <section id="shuffleSection" style="display:none;" class="anim">
+      <button class="btn-shuffle" id="shuffleBtn" onclick="doShuffle()">
+        <span id="shuffleBtnText">🍄 TRUFFLE IT</span>
+      </button>
+    </section>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label" id="progressLabel">Shuffling tracks...</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <div class="result-title">✓ PLAYLIST CREATED IN YOUR SPOTIFY</div>
+      <div class="result-name" id="resultName"></div>
+      <div class="result-preview" id="resultPreview"></div>
+      <div class="result-actions">
+        <a class="btn-open" id="resultLink" href="#" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+          OPEN IN SPOTIFY
+        </a>
+        <button class="btn-again" onclick="shuffleAgain()">↺ SHUFFLE AGAIN</button>
+      </div>
+    </div>
+
+  </div><!-- /appContent -->
+
+</div><!-- /wrap -->
+
+<script>
+  let playlistData = null;
+  let shuffleMode = 'true';
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  async function init() {
+    const res = await fetch('/api/me');
+    const data = await res.json();
+
+    if (data.authenticated) {
+      showApp(data.user);
+    } else {
+      document.getElementById('authGate').classList.add('visible');
+      document.getElementById('authArea').innerHTML = `
+        <a href="/login" class="btn-spotify">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+          CONNECT SPOTIFY
+        </a>`;
+    }
+
+    // Handle error from OAuth redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error')) {
+      showError('Spotify login was cancelled or failed. Please try again.');
+      window.history.replaceState({}, '', '/');
+    }
+  }
+
+  function showApp(user) {
+    document.getElementById('authGate').style.display = 'none';
+    document.getElementById('appContent').style.display = 'block';
+
+    const avatarHtml = user.image
+      ? `<img class="user-avatar" src="${esc(user.image)}" alt="" />`
+      : `<div class="user-avatar-placeholder">👤</div>`;
+
+    document.getElementById('authArea').innerHTML = `
+      <div class="user-pill">
+        ${avatarHtml}
+        <span>${esc(user.name || 'Spotify User')}</span>
+        <a href="/logout" class="logout-link">logout</a>
+      </div>`;
+  }
+
+  // ── Fetch Playlist ────────────────────────────────────────────────────────
+  async function fetchPlaylist() {
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) return;
+
+    hideError();
+    setLoading(true, 'LOADING...');
+
+    try {
+      const res = await fetch(`/api/playlist?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+
+      if (!res.ok) { showError(data.error || 'Failed to load playlist'); setLoading(false); return; }
+
+      playlistData = data;
+      renderPlaylistCard(data);
+      document.getElementById('nameInput').value = `🔀 ${data.name} (Truffled)`;
+      document.getElementById('playlistSection').style.display = 'block';
+      document.getElementById('optionsSection').style.display = 'block';
+      document.getElementById('nameSection').style.display = 'block';
+      document.getElementById('shuffleSection').style.display = 'block';
+      document.getElementById('resultCard').classList.remove('visible');
+
+    } catch (e) {
+      showError('Network error — is the server running?');
+    }
+    setLoading(false);
+  }
+
+  function renderPlaylistCard(data) {
+    document.getElementById('playlistName').textContent = data.name;
+    document.getElementById('playlistOwner').textContent = data.owner || 'Unknown';
+    document.getElementById('playlistCount').textContent = data.total;
+
+    if (data.image) {
+      const img = document.getElementById('playlistArt');
+      img.src = data.image;
+      img.style.display = 'block';
+      document.getElementById('playlistArtPlaceholder').style.display = 'none';
+    }
+  }
+
+  // ── Mode Selection ────────────────────────────────────────────────────────
+  function selectMode(mode) {
+    shuffleMode = mode;
+    document.getElementById('modeTrue').classList.toggle('selected', mode === 'true');
+    document.getElementById('modeSmart').classList.toggle('selected', mode === 'smart');
+  }
+
+  // ── Shuffle ───────────────────────────────────────────────────────────────
+  async function doShuffle() {
+    if (!playlistData) return;
+
+    hideError();
+    document.getElementById('resultCard').classList.remove('visible');
+    document.getElementById('shuffleBtn').disabled = true;
+
+    // Animate progress
+    const progressWrap = document.getElementById('progressWrap');
+    const progressBar = document.getElementById('progressBar');
+    const progressLabel = document.getElementById('progressLabel');
+    progressWrap.classList.add('visible');
+
+    // Fake progress animation while server works
+    let progress = 0;
+    const ticker = setInterval(() => {
+      progress = Math.min(progress + Math.random() * 12, 88);
+      progressBar.style.width = progress + '%';
+      if (progress < 30) progressLabel.textContent = 'Shuffling tracks...';
+      else if (progress < 60) progressLabel.textContent = 'Creating playlist...';
+      else progressLabel.textContent = 'Adding songs to Spotify...';
+    }, 250);
+
+    try {
+      const name = document.getElementById('nameInput').value.trim() || `🔀 ${playlistData.name} (Truffled)`;
+      const res = await fetch('/api/shuffle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playlistId: playlistData.id,
+          originalName: playlistData.name,
+          name,
+          tracks: playlistData.tracks,
+          mode: shuffleMode
+        })
+      });
+
+      const data = await res.json();
+      clearInterval(ticker);
+
+      if (!res.ok) { showError(data.error || 'Failed to create playlist'); progressWrap.classList.remove('visible'); document.getElementById('shuffleBtn').disabled = false; return; }
+
+      progressBar.style.width = '100%';
+      progressLabel.textContent = `Done! ${data.total} tracks shuffled.`;
+      setTimeout(() => progressWrap.classList.remove('visible'), 1200);
+
+      renderResult(data);
+    } catch (e) {
+      clearInterval(ticker);
+      showError('Something went wrong. Please try again.');
+      progressWrap.classList.remove('visible');
+    }
+    document.getElementById('shuffleBtn').disabled = false;
+  }
+
+  function renderResult(data) {
+    document.getElementById('resultName').textContent = data.name;
+    document.getElementById('resultLink').href = data.playlistUrl;
+
+    const preview = document.getElementById('resultPreview');
+    preview.innerHTML = (data.shuffled || []).map((t, i) =>
+      `<div class="result-preview-track">${i === 0 ? '▶ ' : String(i+1).padStart(2,'0') + ' '}${esc(t)}</div>`
+    ).join('');
+    if ((data.shuffled || []).length < data.total) {
+      preview.innerHTML += `<div class="result-preview-track" style="color:var(--muted)">+ ${data.total - (data.shuffled||[]).length} more tracks...</div>`;
+    }
+
+    document.getElementById('resultCard').classList.add('visible');
+    document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function shuffleAgain() {
+    doShuffle();
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = '⚠ ' + msg;
+    el.classList.add('visible');
+  }
+  function hideError() { document.getElementById('errorMsg').classList.remove('visible'); }
+
+  function setLoading(on, label) {
+    const btn = document.getElementById('fetchBtn');
+    btn.disabled = on;
+    btn.textContent = on ? '...' : 'LOAD';
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Allow Enter key in URL input
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('urlInput')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') fetchPlaylist();
+    });
+    init();
+  });
+</script>
+</body>
+</html>
