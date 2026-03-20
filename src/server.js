@@ -5,6 +5,7 @@ const axios = require('axios');
 const path = require('path');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
@@ -18,7 +19,7 @@ app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 } // 1 hour
+  cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 1000 * 60 * 60 }
 }));
 
 // ─── Fisher-Yates Shuffle ──────────────────────────────────────────────────
